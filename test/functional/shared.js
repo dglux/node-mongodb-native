@@ -36,7 +36,8 @@ function setupDatabase(configuration, dbsToClean) {
             .then(() => client.db(dbName).dropDatabase({ writeConcern: { w: 1 } })),
         Promise.resolve()
       )
-    );
+    )
+    .then(() => client.close(), err => client.close(() => Promise.reject(err)));
 }
 
 function makeCleanupFn(client) {
@@ -101,9 +102,9 @@ var delay = function(timeout) {
 };
 
 module.exports = {
-  connectToDb: connectToDb,
-  setupDatabase: setupDatabase,
-  assert: assert,
-  delay: delay,
+  connectToDb,
+  setupDatabase,
+  assert,
+  delay,
   withClient
 };

@@ -25,13 +25,15 @@ describe('Change Streams', function() {
 
   beforeEach(function() {
     const configuration = this.configuration;
-    const MongoClient = configuration.require.MongoClient;
-    const client = new MongoClient(configuration.url());
+    const client = configuration.newClient();
 
-    return client.connect().then(() => {
-      const db = client.db('integration_tests');
-      return db.createCollection('test');
-    });
+    return client
+      .connect()
+      .then(() => {
+        const db = client.db('integration_tests');
+        return db.createCollection('test');
+      })
+      .then(() => client.close(), () => client.close());
   });
 
   it('Should create a Change Stream on a collection and emit `change` events', {
@@ -40,8 +42,7 @@ describe('Change Streams', function() {
     // The actual test we wish to run
     test: function(done) {
       var configuration = this.configuration;
-      var MongoClient = configuration.require.MongoClient;
-      var client = new MongoClient(configuration.url());
+      const client = configuration.newClient();
 
       client.connect(function(err, client) {
         assert.ifError(err);
@@ -95,8 +96,7 @@ describe('Change Streams', function() {
       // The actual test we wish to run
       test: function(done) {
         var configuration = this.configuration;
-        var MongoClient = configuration.require.MongoClient;
-        var client = new MongoClient(configuration.url());
+        const client = configuration.newClient();
 
         client.connect(function(err, client) {
           assert.ifError(err);
@@ -155,8 +155,7 @@ describe('Change Streams', function() {
     // The actual test we wish to run
     test: function(done) {
       var configuration = this.configuration;
-      var MongoClient = configuration.require.MongoClient;
-      var client = new MongoClient(configuration.url());
+      const client = configuration.newClient();
 
       client.connect(function(err, client) {
         assert.ifError(err);
@@ -242,8 +241,7 @@ describe('Change Streams', function() {
     // The actual test we wish to run
     test: function(done) {
       var configuration = this.configuration;
-      var MongoClient = configuration.require.MongoClient;
-      var client = new MongoClient(configuration.url());
+      const client = configuration.newClient();
 
       client.connect(function(err, client) {
         assert.ifError(err);
@@ -274,8 +272,7 @@ describe('Change Streams', function() {
       // The actual test we wish to run
       test: function(done) {
         var configuration = this.configuration;
-        var MongoClient = configuration.require.MongoClient;
-        var client = new MongoClient(configuration.url());
+        const client = configuration.newClient();
 
         client.connect(function(err, client) {
           assert.ifError(err);
@@ -302,8 +299,7 @@ describe('Change Streams', function() {
     // The actual test we wish to run
     test: function(done) {
       var configuration = this.configuration;
-      var MongoClient = configuration.require.MongoClient;
-      var client = new MongoClient(configuration.url());
+      const client = configuration.newClient();
 
       client.connect(function(err, client) {
         assert.ifError(err);
@@ -342,8 +338,7 @@ describe('Change Streams', function() {
     // The actual test we wish to run
     test: function() {
       var configuration = this.configuration;
-      var MongoClient = configuration.require.MongoClient;
-      var client = new MongoClient(configuration.url());
+      const client = configuration.newClient();
 
       return client.connect().then(function() {
         var theDatabase = client.db('integration_tests');
@@ -380,8 +375,7 @@ describe('Change Streams', function() {
     // The actual test we wish to run
     test: function(done) {
       var configuration = this.configuration;
-      var MongoClient = configuration.require.MongoClient;
-      var client = new MongoClient(configuration.url());
+      const client = configuration.newClient();
 
       client.connect(function(err, client) {
         assert.ifError(err);
@@ -417,8 +411,7 @@ describe('Change Streams', function() {
       // The actual test we wish to run
       test: function(done) {
         var configuration = this.configuration;
-        var MongoClient = configuration.require.MongoClient;
-        var client = new MongoClient(configuration.url());
+        const client = configuration.newClient();
 
         client.connect(function(err, client) {
           assert.ifError(err);
@@ -433,26 +426,17 @@ describe('Change Streams', function() {
             theDatabase
               .collection('resumetokenProjectedOutCallback')
               .insert({ b: 2 }, function(err, result) {
-                assert.ifError(err);
-                assert.equal(result.insertedCount, 1);
+                expect(err).to.not.exist;
+                expect(result.insertedCount).to.equal(1);
               });
-          });
+          }, 250);
 
           // Fetch the change notification
-          thisChangeStream.hasNext(function(err, hasNext) {
-            assert.ifError(err);
-            assert.equal(true, hasNext);
+          thisChangeStream.next(function(err) {
+            expect(err).to.exist;
 
-            thisChangeStream.next(function(err) {
-              assert.ok(err);
-              assert.equal(
-                err.message,
-                'A change stream document has been received that lacks a resume token (_id).'
-              );
-
-              // Close the change stream
-              thisChangeStream.close().then(() => client.close(done));
-            });
+            // Close the change stream
+            thisChangeStream.close().then(() => client.close(done));
           });
         });
       }
@@ -465,8 +449,8 @@ describe('Change Streams', function() {
     // The actual test we wish to run
     test: function(done) {
       var configuration = this.configuration;
-      var MongoClient = configuration.require.MongoClient;
-      var client = new MongoClient(configuration.url());
+      const client = configuration.newClient();
+
       client.connect(function(err, client) {
         assert.ifError(err);
 
@@ -481,11 +465,7 @@ describe('Change Streams', function() {
         });
 
         thisChangeStream.on('error', function(err) {
-          assert.equal(
-            err.message,
-            'A change stream document has been received that lacks a resume token (_id).'
-          );
-
+          expect(err).to.exist;
           thisChangeStream.close(() => client.close(done));
         });
 
@@ -508,8 +488,7 @@ describe('Change Streams', function() {
     // The actual test we wish to run
     test: function(done) {
       var configuration = this.configuration;
-      var MongoClient = configuration.require.MongoClient;
-      var client = new MongoClient(configuration.url());
+      const client = configuration.newClient();
 
       client.connect(function(err, client) {
         assert.ifError(err);
@@ -530,12 +509,11 @@ describe('Change Streams', function() {
           );
 
           // Attach second event listener
-          changeStream.once('change', function(change) {
-            // Check the cursor invalidation has occured
-            assert.equal(change.operationType, 'invalidate');
-
-            // now expect the server to close the stream
-            changeStream.once('close', () => client.close(done));
+          changeStream.on('change', function(change) {
+            if (change.operationType === 'invalidate') {
+              // now expect the server to close the stream
+              changeStream.once('close', () => client.close(done));
+            }
           });
 
           // Trigger the second database event
@@ -545,7 +523,7 @@ describe('Change Streams', function() {
               .rename('renamedDocs', { dropTarget: true }, function(err) {
                 assert.ifError(err);
               });
-          });
+          }, 250);
         });
 
         // Trigger the first database event
@@ -564,8 +542,7 @@ describe('Change Streams', function() {
     // The actual test we wish to run
     test: function(done) {
       var configuration = this.configuration;
-      var MongoClient = configuration.require.MongoClient;
-      var client = new MongoClient(configuration.url());
+      const client = configuration.newClient();
 
       client.connect(function(err, client) {
         assert.ifError(err);
@@ -586,18 +563,28 @@ describe('Change Streams', function() {
           database.dropDatabase(function(err) {
             assert.ifError(err);
 
-            changeStream.next(function(err, change) {
-              assert.ifError(err);
-
-              // Check the cursor invalidation has occured
-              assert.equal(change.operationType, 'invalidate');
-
+            function completeStream() {
               changeStream.hasNext(function(err, hasNext) {
                 assert.equal(hasNext, false);
                 assert.equal(changeStream.isClosed(), true);
                 client.close(done);
               });
-            });
+            }
+
+            function checkInvalidate() {
+              changeStream.next(function(err, change) {
+                assert.ifError(err);
+
+                // Check the cursor invalidation has occured
+                if (change.operationType === 'invalidate') {
+                  return completeStream();
+                }
+
+                checkInvalidate();
+              });
+            }
+
+            checkInvalidate();
           });
         });
       });
@@ -610,8 +597,17 @@ describe('Change Streams', function() {
     // The actual test we wish to run
     test: function(done) {
       var configuration = this.configuration;
-      var MongoClient = configuration.require.MongoClient;
-      var client = new MongoClient(configuration.url());
+      const client = configuration.newClient();
+
+      function checkInvalidate(changeStream) {
+        return changeStream.next().then(change => {
+          if (change.operationType === 'invalidate') {
+            return Promise.resolve();
+          }
+
+          return checkInvalidate(changeStream);
+        });
+      }
 
       client.connect(function(err, client) {
         assert.ifError(err);
@@ -626,21 +622,16 @@ describe('Change Streams', function() {
             .then(function() {
               return delay(200);
             });
-        });
+        }, 200);
+
         return changeStream
           .next()
           .then(function(change) {
             assert.equal(change.operationType, 'insert');
             return database.dropCollection('invalidateCollectionDropPromises');
           })
-          .then(function() {
-            return changeStream.next();
-          })
-          .then(function(change) {
-            // Check the cursor invalidation has occured
-            assert.equal(change.operationType, 'invalidate');
-            return changeStream.hasNext();
-          })
+          .then(() => checkInvalidate(changeStream))
+          .then(() => changeStream.hasNext())
           .then(function(hasNext) {
             assert.equal(hasNext, false);
             assert.equal(changeStream.isClosed(), true);
@@ -664,8 +655,7 @@ describe('Change Streams', function() {
 
     test: function(done) {
       var configuration = this.configuration;
-      var MongoClient = configuration.require.MongoClient,
-        ObjectId = configuration.require.ObjectId;
+      const ObjectId = configuration.require.ObjectId;
 
       // Contain mock server
       var primaryServer = null;
@@ -712,8 +702,7 @@ describe('Change Streams', function() {
       });
 
       const mockServerURL = 'mongodb://localhost:32000/';
-
-      var client = new MongoClient(mockServerURL);
+      const client = configuration.newClient(mockServerURL);
 
       client.connect(function(err, client) {
         assert.ifError(err);
@@ -763,8 +752,7 @@ describe('Change Streams', function() {
     },
     test: function(done) {
       var configuration = this.configuration;
-      var MongoClient = configuration.require.MongoClient,
-        ObjectId = configuration.require.ObjectId;
+      const ObjectId = configuration.require.ObjectId;
 
       // Contain mock server
       var primaryServer = null;
@@ -815,39 +803,37 @@ describe('Change Streams', function() {
         });
       });
 
-      MongoClient.connect(
-        'mongodb://localhost:32000/',
-        {
-          socketTimeoutMS: 500,
-          validateOptions: true
-        },
-        function(err, client) {
-          assert.ifError(err);
+      const client = configuration.newClient('mongodb://localhost:32000/', {
+        socketTimeoutMS: 500,
+        validateOptions: true
+      });
 
-          var theDatabase = client.db('integration_tests');
-          var theCollection = theDatabase.collection('MongoNetworkErrorTestPromises');
-          var thisChangeStream = theCollection.watch(pipeline);
+      client.connect(function(err, client) {
+        assert.ifError(err);
 
-          thisChangeStream.next(function(err, change) {
-            assert.ok(err instanceof MongoNetworkError);
-            assert.ok(err.message);
-            assert.ok(err.message.indexOf('timed out') > -1);
+        var theDatabase = client.db('integration_tests');
+        var theCollection = theDatabase.collection('MongoNetworkErrorTestPromises');
+        var thisChangeStream = theCollection.watch(pipeline);
 
-            assert.equal(
-              change,
-              null,
-              'ChangeStream.next() returned a change document but it should have returned a MongoNetworkError'
-            );
+        thisChangeStream.next(function(err, change) {
+          assert.ok(err instanceof MongoNetworkError);
+          assert.ok(err.message);
+          assert.ok(err.message.indexOf('timed out') > -1);
 
-            thisChangeStream.close(function(err) {
-              assert.ifError(err);
-              thisChangeStream.close();
+          assert.equal(
+            change,
+            null,
+            'ChangeStream.next() returned a change document but it should have returned a MongoNetworkError'
+          );
 
-              client.close(() => mock.cleanup(() => done()));
-            });
+          thisChangeStream.close(function(err) {
+            assert.ifError(err);
+            thisChangeStream.close();
+
+            client.close(() => mock.cleanup(() => done()));
           });
-        }
-      );
+        });
+      });
     }
   });
 
@@ -861,10 +847,9 @@ describe('Change Streams', function() {
     },
     test: function(done) {
       var configuration = this.configuration;
-      var MongoClient = configuration.require.MongoClient,
-        ObjectId = configuration.require.ObjectId,
-        Timestamp = configuration.require.Timestamp,
-        Long = configuration.require.Long;
+      const ObjectId = configuration.require.ObjectId;
+      const Timestamp = configuration.require.Timestamp;
+      const Long = configuration.require.Long;
 
       // Contain mock server
       var primaryServer = null;
@@ -939,11 +924,13 @@ describe('Change Streams', function() {
       });
 
       let finalError = undefined;
-
-      MongoClient.connect('mongodb://localhost:32000/', {
+      const client = configuration.newClient('mongodb://localhost:32000/', {
         socketTimeoutMS: 500,
         validateOptions: true
-      })
+      });
+
+      client
+        .connect()
         .then(client => {
           var database = client.db('integration_tests');
           var collection = database.collection('MongoNetworkErrorTestPromises');
@@ -990,8 +977,7 @@ describe('Change Streams', function() {
     // The actual test we wish to run
     test: function() {
       var configuration = this.configuration;
-      var MongoClient = configuration.require.MongoClient;
-      var client = new MongoClient(configuration.url());
+      const client = configuration.newClient();
 
       return client.connect().then(client => {
         var database = client.db('integration_tests');
@@ -1081,8 +1067,7 @@ describe('Change Streams', function() {
     // The actual test we wish to run
     test: function() {
       var configuration = this.configuration;
-      var MongoClient = configuration.require.MongoClient;
-      var client = new MongoClient(configuration.url());
+      const client = configuration.newClient();
 
       return client.connect().then(client => {
         var database = client.db('integration_tests');
@@ -1137,8 +1122,7 @@ describe('Change Streams', function() {
     // The actual test we wish to run
     test: function() {
       var configuration = this.configuration;
-      var MongoClient = configuration.require.MongoClient;
-      var client = new MongoClient(configuration.url());
+      const client = configuration.newClient();
 
       return client.connect().then(client => {
         var database = client.db('integration_tests');
@@ -1206,9 +1190,8 @@ describe('Change Streams', function() {
     // The actual test we wish to run
     test: function() {
       var configuration = this.configuration;
-      var MongoClient = configuration.require.MongoClient;
       var ReadPreference = configuration.require.ReadPreference;
-      var client = new MongoClient(configuration.url());
+      const client = configuration.newClient();
 
       return client.connect().then(client => {
         // Should get preference from database
@@ -1256,8 +1239,7 @@ describe('Change Streams', function() {
     test: function(done) {
       var configuration = this.configuration;
       var fs = require('fs');
-      var MongoClient = configuration.require.MongoClient;
-      var client = new MongoClient(configuration.url());
+      const client = configuration.newClient();
 
       client.connect(function(err, client) {
         assert.ifError(err);
@@ -1304,10 +1286,9 @@ describe('Change Streams', function() {
     },
     test: function(done) {
       var configuration = this.configuration;
-      var MongoClient = configuration.require.MongoClient,
-        ObjectId = configuration.require.ObjectId,
-        Timestamp = configuration.require.Timestamp,
-        Long = configuration.require.Long;
+      const ObjectId = configuration.require.ObjectId;
+      const Timestamp = configuration.require.Timestamp;
+      const Long = configuration.require.Long;
 
       // Contain mock server
       var primaryServer = null;
@@ -1403,44 +1384,42 @@ describe('Change Streams', function() {
           }
         });
 
-        MongoClient.connect(
-          `mongodb://${primaryServer.uri()}/`,
-          {
-            socketTimeoutMS: 500,
-            validateOptions: true
-          },
-          function(err, client) {
-            assert.ifError(err);
+        const client = configuration.newClient(`mongodb://${primaryServer.uri()}/`, {
+          socketTimeoutMS: 500,
+          validateOptions: true
+        });
 
-            var fs = require('fs');
-            var theDatabase = client.db('integration_tests5');
-            var theCollection = theDatabase.collection('MongoNetworkErrorTestPromises');
-            var thisChangeStream = theCollection.watch(pipeline);
+        client.connect(function(err, client) {
+          assert.ifError(err);
 
-            var filename = '/tmp/_nodemongodbnative_resumepipe.txt';
-            var outStream = fs.createWriteStream(filename);
+          var fs = require('fs');
+          var theDatabase = client.db('integration_tests5');
+          var theCollection = theDatabase.collection('MongoNetworkErrorTestPromises');
+          var thisChangeStream = theCollection.watch(pipeline);
 
-            thisChangeStream.stream({ transform: JSON.stringify }).pipe(outStream);
+          var filename = '/tmp/_nodemongodbnative_resumepipe.txt';
+          var outStream = fs.createWriteStream(filename);
 
-            // Listen for changes to the file
-            var watcher = fs.watch(filename, function(eventType) {
-              assert.equal(eventType, 'change');
+          thisChangeStream.stream({ transform: JSON.stringify }).pipe(outStream);
 
-              var fileContents = fs.readFileSync(filename, 'utf8');
+          // Listen for changes to the file
+          var watcher = fs.watch(filename, function(eventType) {
+            assert.equal(eventType, 'change');
 
-              var parsedFileContents = JSON.parse(fileContents);
-              assert.equal(parsedFileContents.fullDocument.a, 1);
+            var fileContents = fs.readFileSync(filename, 'utf8');
 
-              watcher.close();
+            var parsedFileContents = JSON.parse(fileContents);
+            assert.equal(parsedFileContents.fullDocument.a, 1);
 
-              thisChangeStream.close(function(err) {
-                assert.ifError(err);
+            watcher.close();
 
-                mock.cleanup(() => done());
-              });
+            thisChangeStream.close(function(err) {
+              assert.ifError(err);
+
+              mock.cleanup(() => done());
             });
-          }
-        );
+          });
+        });
       });
     }
   });
@@ -1452,8 +1431,7 @@ describe('Change Streams', function() {
     test: function(done) {
       var configuration = this.configuration;
       var crypto = require('crypto');
-      var MongoClient = configuration.require.MongoClient;
-      var client = new MongoClient(configuration.url(), {
+      const client = configuration.newClient(configuration.url(), {
         poolSize: 1,
         autoReconnect: false
       });
@@ -1512,8 +1490,7 @@ describe('Change Streams', function() {
     metadata: { requires: { topology: 'replicaset', mongodb: '>=3.5.10' } },
     test: function(done) {
       const configuration = this.configuration;
-      const MongoClient = configuration.require.MongoClient;
-      const client = new MongoClient(configuration.url());
+      const client = configuration.newClient();
 
       const collectionName = 'resumeAfterKillCursor';
 
@@ -1552,7 +1529,6 @@ describe('Change Streams', function() {
     metadata: { requires: { topology: 'replicaset', mongodb: '>=3.7.3' } },
     test: function(done) {
       const configuration = this.configuration;
-      const MongoClient = configuration.require.MongoClient;
       const ObjectId = configuration.require.ObjectId;
       const Timestamp = configuration.require.Timestamp;
       const Long = configuration.require.Long;
@@ -1560,6 +1536,7 @@ describe('Change Streams', function() {
       const OPERATION_TIME = new Timestamp(4, 1501511802);
 
       const makeIsMaster = server => ({
+        __nodejs_mock_server__: true,
         ismaster: true,
         secondary: false,
         me: server.uri(),
@@ -1588,6 +1565,10 @@ describe('Change Streams', function() {
           firstBatch: [],
           id: new Long('9064341847921713401'),
           ns: 'test.test'
+        },
+        operationTime: OPERATION_TIME,
+        $clusterTime: {
+          clusterTime: OPERATION_TIME
         }
       };
 
@@ -1628,9 +1609,9 @@ describe('Change Streams', function() {
 
       let getMoreCounter = 0;
       let aggregateCounter = 0;
-      let client;
       let changeStream;
       let server;
+      let client;
 
       let finish = err => {
         finish = () => {};
@@ -1648,9 +1629,14 @@ describe('Change Streams', function() {
             return request.reply(makeIsMaster(server));
           } else if (doc.aggregate) {
             if (aggregateCounter++ > 0) {
-              expect(doc)
-                .to.have.nested.property('pipeline[0].$changeStream.startAtOperationTime')
-                .that.deep.equals(OPERATION_TIME);
+              expect(doc).to.have.nested.property('pipeline[0].$changeStream.startAtOperationTime');
+              expect(doc.pipeline[0].$changeStream.startAtOperationTime.equals(OPERATION_TIME)).to
+                .be.ok;
+              expect(doc).to.not.have.nested.property('pipeline[0].$changeStream.resumeAfter');
+            } else {
+              expect(doc).to.not.have.nested.property(
+                'pipeline[0].$changeStream.startAtOperationTime'
+              );
               expect(doc).to.not.have.nested.property('pipeline[0].$changeStream.resumeAfter');
             }
             return request.reply(AGGREGATE_RESPONSE);
@@ -1672,8 +1658,8 @@ describe('Change Streams', function() {
         .createServer()
         .then(_server => (server = _server))
         .then(() => server.setMessageHandler(primaryServerHandler))
-        .then(() => MongoClient.connect(`mongodb://${server.uri()}`, connectOptions))
-        .then(_client => (client = _client))
+        .then(() => (client = configuration.newClient(`mongodb://${server.uri()}`, connectOptions)))
+        .then(() => client.connect())
         .then(() => client.db(dbName))
         .then(db => db.collection(collectionName))
         .then(col => col.watch(pipeline))
@@ -1681,5 +1667,110 @@ describe('Change Streams', function() {
         .then(() => changeStream.next())
         .then(() => finish(), err => finish(err));
     }
+  });
+
+  describe('should properly handle a changeStream event being processed mid-close', function() {
+    let client, coll;
+
+    function write() {
+      return Promise.resolve()
+        .then(() => coll.insertOne({ a: 1 }))
+        .then(() => coll.insertOne({ b: 2 }))
+        .then(() => coll.insertOne({ c: 3 }));
+    }
+
+    beforeEach(function() {
+      client = this.configuration.newClient();
+      return client.connect().then(_client => {
+        client = _client;
+        coll = client.db(this.configuration.db).collection('tester');
+      });
+    });
+
+    afterEach(function() {
+      coll = undefined;
+      if (client) {
+        return client.close().then(() => {
+          client = undefined;
+        });
+      }
+    });
+
+    it('when invoked with promises', {
+      metadata: { requires: { topology: 'replicaset', mongodb: '>=3.5.10' } },
+      test: function() {
+        function read() {
+          const changeStream = coll.watch();
+          return Promise.resolve()
+            .then(() => changeStream.next())
+            .then(() => changeStream.next())
+            .then(() => {
+              const nextP = changeStream.next();
+
+              return changeStream.close().then(() => nextP);
+            });
+        }
+
+        return Promise.all([read(), write()]).then(
+          () => Promise.reject(new Error('Expected operation to fail with error')),
+          err => expect(err.message).to.equal('ChangeStream is closed')
+        );
+      }
+    });
+
+    it('when invoked with callbacks', {
+      metadata: { requires: { topology: 'replicaset', mongodb: '>=3.5.10' } },
+      test: function(done) {
+        const changeStream = coll.watch();
+
+        changeStream.next(() => {
+          changeStream.next(() => {
+            changeStream.next(err => {
+              let _err = null;
+              try {
+                expect(err.message).to.equal('ChangeStream is closed');
+              } catch (e) {
+                _err = e;
+              } finally {
+                done(_err);
+              }
+            });
+            changeStream.close();
+          });
+        });
+
+        write().catch(() => {});
+      }
+    });
+
+    it('when invoked using eventEmitter API', {
+      metadata: { requires: { topology: 'replicaset', mongodb: '>=3.5.10' } },
+      test: function(done) {
+        let closed = false;
+        const close = _err => {
+          if (closed) {
+            return;
+          }
+          closed = true;
+          return done(_err);
+        };
+
+        const changeStream = coll.watch();
+
+        let counter = 0;
+        changeStream.on('change', () => {
+          counter += 1;
+          if (counter === 2) {
+            changeStream.close();
+            setTimeout(() => close());
+          } else if (counter >= 3) {
+            close(new Error('Should not have received more than 2 events'));
+          }
+        });
+        changeStream.on('error', err => close(err));
+
+        setTimeout(() => write().catch(() => {}));
+      }
+    });
   });
 });

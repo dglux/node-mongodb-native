@@ -1,11 +1,13 @@
 'use strict';
 
+const stream = require('stream');
 const crypto = require('crypto'),
   EJSON = require('mongodb-extjson'),
   fs = require('fs'),
   test = require('./shared').assert,
   setupDatabase = require('./shared').setupDatabase,
-  expect = require('chai').expect;
+  expect = require('chai').expect,
+  Buffer = require('safe-buffer').Buffer;
 
 describe('GridFS Stream', function() {
   before(function() {
@@ -28,26 +30,27 @@ describe('GridFS Stream', function() {
       var GridFSBucket = configuration.require.GridFSBucket;
 
       var client = configuration.newClient(configuration.writeConcernMax(), { poolSize: 1 });
+
+      // LINE var MongoClient = require('mongodb').MongoClient,
+      // LINE   test = require('assert');
+      // LINE const client = new MongoClient('mongodb://localhost:27017/test');
+      // LINE const db = client.db('test);
+      // REPLACE configuration.writeConcernMax() WITH {w:1}
+      // REMOVE-LINE restartAndDone
+      // REMOVE-LINE done();
+      // REMOVE-LINE var db = client.db(configuration.db);
+      // BEGIN
       client.connect(function(err, client) {
-        // LINE var MongoClient = require('mongodb').MongoClient,
-        // LINE   test = require('assert');
-        // LINE MongoClient.connect('mongodb://localhost:27017/test', function(err, client) {
-        // LINE   var db = client.db('test);
-        // REPLACE configuration.writeConcernMax() WITH {w:1}
-        // REMOVE-LINE restartAndDone
-        // REMOVE-LINE done();
-        // REMOVE-LINE var db = client.db(configuration.db);
-        // BEGIN
         var db = client.db(configuration.db);
         db.dropDatabase(function(error) {
           test.equal(error, null);
 
           var bucket = new GridFSBucket(db);
-          var readStream = fs.createReadStream('./LICENSE');
+          var readStream = fs.createReadStream('./LICENSE.md');
 
           var uploadStream = bucket.openUploadStream('test.dat');
 
-          var license = fs.readFileSync('./LICENSE');
+          var license = fs.readFileSync('./LICENSE.md');
           var id = uploadStream.id;
 
           // Wait for stream to finish
@@ -112,26 +115,26 @@ describe('GridFS Stream', function() {
       var GridFSBucket = configuration.require.GridFSBucket;
 
       var client = configuration.newClient(configuration.writeConcernMax(), { poolSize: 1 });
+      // LINE var MongoClient = require('mongodb').MongoClient,
+      // LINE   test = require('assert');
+      // LINE const client = new MongoClient('mongodb://localhost:27017/test');
+      // LINE const db = client.db('test);
+      // REPLACE configuration.writeConcernMax() WITH {w:1}
+      // REMOVE-LINE restartAndDone
+      // REMOVE-LINE done();
+      // REMOVE-LINE var db = client.db(configuration.db);
+      // BEGIN
       client.connect(function(err, client) {
-        // LINE var MongoClient = require('mongodb').MongoClient,
-        // LINE   test = require('assert');
-        // LINE MongoClient.connect('mongodb://localhost:27017/test', function(err, client) {
-        // LINE   var db = client.db('test);
-        // REPLACE configuration.writeConcernMax() WITH {w:1}
-        // REMOVE-LINE restartAndDone
-        // REMOVE-LINE done();
-        // REMOVE-LINE var db = client.db(configuration.db);
-        // BEGIN
         var db = client.db(configuration.db);
         db.dropDatabase(function(error) {
           test.equal(error, null);
 
           var bucket = new GridFSBucket(db);
-          var readStream = fs.createReadStream('./LICENSE');
+          var readStream = fs.createReadStream('./LICENSE.md');
 
           var uploadStream = bucket.openUploadStreamWithId(1, 'test.dat');
 
-          var license = fs.readFileSync('./LICENSE');
+          var license = fs.readFileSync('./LICENSE.md');
           var id = uploadStream.id;
           test.equal(1, id);
 
@@ -198,25 +201,25 @@ describe('GridFS Stream', function() {
       var GridFSBucket = configuration.require.GridFSBucket;
 
       var client = configuration.newClient(configuration.writeConcernMax(), { poolSize: 1 });
+      // LINE var MongoClient = require('mongodb').MongoClient,
+      // LINE   test = require('assert');
+      // LINE const client = new MongoClient('mongodb://localhost:27017/test');
+      // LINE const db = client.db('test);
+      // REPLACE configuration.writeConcernMax() WITH {w:1}
+      // REMOVE-LINE restartAndDone
+      // REMOVE-LINE done();
+      // REMOVE-LINE var db = client.db(configuration.db);
+      // BEGIN
       client.connect(function(err, client) {
-        // LINE var MongoClient = require('mongodb').MongoClient,
-        // LINE   test = require('assert');
-        // LINE MongoClient.connect('mongodb://localhost:27017/test', function(err, client) {
-        // LINE   var db = client.db('test);
-        // REPLACE configuration.writeConcernMax() WITH {w:1}
-        // REMOVE-LINE restartAndDone
-        // REMOVE-LINE done();
-        // REMOVE-LINE var db = client.db(configuration.db);
-        // BEGIN
         var db = client.db(configuration.db);
         var bucket = new GridFSBucket(db, { bucketName: 'gridfsdownload' });
         var CHUNKS_COLL = 'gridfsdownload.chunks';
         var FILES_COLL = 'gridfsdownload.files';
-        var readStream = fs.createReadStream('./LICENSE');
+        var readStream = fs.createReadStream('./LICENSE.md');
 
         var uploadStream = bucket.openUploadStream('test.dat');
 
-        var license = fs.readFileSync('./LICENSE');
+        var license = fs.readFileSync('./LICENSE.md');
         var id = uploadStream.id;
 
         uploadStream.once('finish', function() {
@@ -266,16 +269,16 @@ describe('GridFS Stream', function() {
         ObjectId = configuration.require.ObjectID;
 
       var client = configuration.newClient(configuration.writeConcernMax(), { poolSize: 1 });
+      // LINE var MongoClient = require('mongodb').MongoClient,
+      // LINE   test = require('assert');
+      // LINE const client = new MongoClient('mongodb://localhost:27017/test');
+      // LINE const db = client.db('test);
+      // REPLACE configuration.writeConcernMax() WITH {w:1}
+      // REMOVE-LINE restartAndDone
+      // REMOVE-LINE done();
+      // REMOVE-LINE var db = client.db(configuration.db);
+      // BEGIN
       client.connect(function(err, client) {
-        // LINE var MongoClient = require('mongodb').MongoClient,
-        // LINE   test = require('assert');
-        // LINE MongoClient.connect('mongodb://localhost:27017/test', function(err, client) {
-        // LINE   var db = client.db('test);
-        // REPLACE configuration.writeConcernMax() WITH {w:1}
-        // REMOVE-LINE restartAndDone
-        // REMOVE-LINE done();
-        // REMOVE-LINE var db = client.db(configuration.db);
-        // BEGIN
         var db = client.db(configuration.db);
         var bucket = new GridFSBucket(db, { bucketName: 'gridfsdownload' });
 
@@ -310,19 +313,19 @@ describe('GridFS Stream', function() {
       var GridFSBucket = configuration.require.GridFSBucket;
 
       var client = configuration.newClient(configuration.writeConcernMax(), { poolSize: 1 });
+      // LINE var MongoClient = require('mongodb').MongoClient,
+      // LINE   test = require('assert');
+      // LINE const client = new MongoClient('mongodb://localhost:27017/test');
+      // LINE const db = client.db('test);
+      // REPLACE configuration.writeConcernMax() WITH {w:1}
+      // REMOVE-LINE restartAndDone
+      // REMOVE-LINE done();
+      // REMOVE-LINE var db = client.db(configuration.db);
+      // BEGIN
       client.connect(function(err, client) {
-        // LINE var MongoClient = require('mongodb').MongoClient,
-        // LINE   test = require('assert');
-        // LINE MongoClient.connect('mongodb://localhost:27017/test', function(err, client) {
-        // LINE   var db = client.db('test);
-        // REPLACE configuration.writeConcernMax() WITH {w:1}
-        // REMOVE-LINE restartAndDone
-        // REMOVE-LINE done();
-        // REMOVE-LINE var db = client.db(configuration.db);
-        // BEGIN
         var db = client.db(configuration.db);
         var bucket = new GridFSBucket(db, { bucketName: 'gridfsdownload' });
-        var readStream = fs.createReadStream('./LICENSE');
+        var readStream = fs.createReadStream('./LICENSE.md');
         var uploadStream = bucket.openUploadStream('test.dat');
 
         uploadStream.once('finish', function() {
@@ -364,23 +367,23 @@ describe('GridFS Stream', function() {
       var GridFSBucket = configuration.require.GridFSBucket;
 
       var client = configuration.newClient(configuration.writeConcernMax(), { poolSize: 1 });
+      // LINE var MongoClient = require('mongodb').MongoClient,
+      // LINE   test = require('assert');
+      // LINE const client = new MongoClient('mongodb://localhost:27017/test');
+      // LINE const db = client.db('test);
+      // REPLACE configuration.writeConcernMax() WITH {w:1}
+      // REMOVE-LINE restartAndDone
+      // REMOVE-LINE done();
+      // REMOVE-LINE var db = client.db(configuration.db);
+      // BEGIN
       client.connect(function(err, client) {
-        // LINE var MongoClient = require('mongodb').MongoClient,
-        // LINE   test = require('assert');
-        // LINE MongoClient.connect('mongodb://localhost:27017/test', function(err, client) {
-        // LINE   var db = client.db('test);
-        // REPLACE configuration.writeConcernMax() WITH {w:1}
-        // REMOVE-LINE restartAndDone
-        // REMOVE-LINE done();
-        // REMOVE-LINE var db = client.db(configuration.db);
-        // BEGIN
         var db = client.db(configuration.db);
         var bucket = new GridFSBucket(db, {
           bucketName: 'gridfsdownload',
           chunkSizeBytes: 2
         });
 
-        var readStream = fs.createReadStream('./LICENSE');
+        var readStream = fs.createReadStream('./LICENSE.md');
         var uploadStream = bucket.openUploadStream('teststart.dat');
 
         uploadStream.once('finish', function() {
@@ -433,21 +436,21 @@ describe('GridFS Stream', function() {
       var GridFSBucket = configuration.require.GridFSBucket;
 
       var client = configuration.newClient(configuration.writeConcernMax(), { poolSize: 1 });
+      // LINE var MongoClient = require('mongodb').MongoClient,
+      // LINE   test = require('assert');
+      // LINE const client = new MongoClient('mongodb://localhost:27017/test');
+      // LINE const db = client.db('test);
+      // REPLACE configuration.writeConcernMax() WITH {w:1}
+      // REMOVE-LINE restartAndDone
+      // REMOVE-LINE done();
+      // REMOVE-LINE var db = client.db(configuration.db);
+      // BEGIN
       client.connect(function(err, client) {
-        // LINE var MongoClient = require('mongodb').MongoClient,
-        // LINE   test = require('assert');
-        // LINE MongoClient.connect('mongodb://localhost:27017/test', function(err, client) {
-        // LINE   var db = client.db('test);
-        // REPLACE configuration.writeConcernMax() WITH {w:1}
-        // REMOVE-LINE restartAndDone
-        // REMOVE-LINE done();
-        // REMOVE-LINE var db = client.db(configuration.db);
-        // BEGIN
         var db = client.db(configuration.db);
         var bucket = new GridFSBucket(db, { bucketName: 'gridfsdownload' });
         var CHUNKS_COLL = 'gridfsdownload.chunks';
         var FILES_COLL = 'gridfsdownload.files';
-        var readStream = fs.createReadStream('./LICENSE');
+        var readStream = fs.createReadStream('./LICENSE.md');
 
         var uploadStream = bucket.openUploadStream('test.dat');
         var id = uploadStream.id;
@@ -494,16 +497,16 @@ describe('GridFS Stream', function() {
       var GridFSBucket = configuration.require.GridFSBucket;
 
       var client = configuration.newClient(configuration.writeConcernMax(), { poolSize: 1 });
+      // LINE var MongoClient = require('mongodb').MongoClient,
+      // LINE   test = require('assert');
+      // LINE const client = new MongoClient('mongodb://localhost:27017/test');
+      // LINE const db = client.db('test);
+      // REPLACE configuration.writeConcernMax() WITH {w:1}
+      // REMOVE-LINE restartAndDone
+      // REMOVE-LINE done();
+      // REMOVE-LINE var db = client.db(configuration.db);
+      // BEGIN
       client.connect(function(err, client) {
-        // LINE var MongoClient = require('mongodb').MongoClient,
-        // LINE   test = require('assert');
-        // LINE MongoClient.connect('mongodb://localhost:27017/test', function(err, client) {
-        // LINE   var db = client.db('test);
-        // REPLACE configuration.writeConcernMax() WITH {w:1}
-        // REMOVE-LINE restartAndDone
-        // REMOVE-LINE done();
-        // REMOVE-LINE var db = client.db(configuration.db);
-        // BEGIN
         var db = client.db(configuration.db);
         var bucket = new GridFSBucket(db, { bucketName: 'gridfsabort', chunkSizeBytes: 1 });
         var CHUNKS_COLL = 'gridfsabort.chunks';
@@ -556,16 +559,16 @@ describe('GridFS Stream', function() {
       var GridFSBucket = configuration.require.GridFSBucket;
 
       var client = configuration.newClient(configuration.writeConcernMax(), { poolSize: 1 });
+      // LINE var MongoClient = require('mongodb').MongoClient,
+      // LINE   test = require('assert');
+      // LINE const client = new MongoClient('mongodb://localhost:27017/test');
+      // LINE const db = client.db('test);
+      // REPLACE configuration.writeConcernMax() WITH {w:1}
+      // REMOVE-LINE restartAndDone
+      // REMOVE-LINE done();
+      // REMOVE-LINE var db = client.db(configuration.db);
+      // BEGIN
       client.connect(function(err, client) {
-        // LINE var MongoClient = require('mongodb').MongoClient,
-        // LINE   test = require('assert');
-        // LINE MongoClient.connect('mongodb://localhost:27017/test', function(err, client) {
-        // LINE   var db = client.db('test);
-        // REPLACE configuration.writeConcernMax() WITH {w:1}
-        // REMOVE-LINE restartAndDone
-        // REMOVE-LINE done();
-        // REMOVE-LINE var db = client.db(configuration.db);
-        // BEGIN
         var db = client.db(configuration.db);
         var bucket = new GridFSBucket(db, { bucketName: 'gridfsabort', chunkSizeBytes: 1 });
         var CHUNKS_COLL = 'gridfsabort.chunks';
@@ -620,19 +623,19 @@ describe('GridFS Stream', function() {
       var GridFSBucket = configuration.require.GridFSBucket;
 
       var client = configuration.newClient(configuration.writeConcernMax(), { poolSize: 1 });
+      // LINE var MongoClient = require('mongodb').MongoClient,
+      // LINE   test = require('assert');
+      // LINE const client = new MongoClient('mongodb://localhost:27017/test');
+      // LINE const db = client.db('test);
+      // REPLACE configuration.writeConcernMax() WITH {w:1}
+      // REMOVE-LINE restartAndDone
+      // REMOVE-LINE done();
+      // REMOVE-LINE var db = client.db(configuration.db);
+      // BEGIN
       client.connect(function(err, client) {
-        // LINE var MongoClient = require('mongodb').MongoClient,
-        // LINE   test = require('assert');
-        // LINE MongoClient.connect('mongodb://localhost:27017/test', function(err, client) {
-        // LINE   var db = client.db('test);
-        // REPLACE configuration.writeConcernMax() WITH {w:1}
-        // REMOVE-LINE restartAndDone
-        // REMOVE-LINE done();
-        // REMOVE-LINE var db = client.db(configuration.db);
-        // BEGIN
         var db = client.db(configuration.db);
         var bucket = new GridFSBucket(db, { bucketName: 'gridfsdestroy', chunkSizeBytes: 10 });
-        var readStream = fs.createReadStream('./LICENSE');
+        var readStream = fs.createReadStream('./LICENSE.md');
         var uploadStream = bucket.openUploadStream('test.dat');
 
         // Wait for stream to finish
@@ -692,21 +695,21 @@ describe('GridFS Stream', function() {
       var GridFSBucket = configuration.require.GridFSBucket;
 
       var client = configuration.newClient(configuration.writeConcernMax(), { poolSize: 1 });
+      // LINE var MongoClient = require('mongodb').MongoClient,
+      // LINE   test = require('assert');
+      // LINE const client = new MongoClient('mongodb://localhost:27017/test');
+      // LINE const db = client.db('test);
+      // REPLACE configuration.writeConcernMax() WITH {w:1}
+      // REMOVE-LINE restartAndDone
+      // REMOVE-LINE done();
+      // REMOVE-LINE var db = client.db(configuration.db);
+      // BEGIN
       client.connect(function(err, client) {
-        // LINE var MongoClient = require('mongodb').MongoClient,
-        // LINE   test = require('assert');
-        // LINE MongoClient.connect('mongodb://localhost:27017/test', function(err, client) {
-        // LINE   var db = client.db('test);
-        // REPLACE configuration.writeConcernMax() WITH {w:1}
-        // REMOVE-LINE restartAndDone
-        // REMOVE-LINE done();
-        // REMOVE-LINE var db = client.db(configuration.db);
-        // BEGIN
         var db = client.db(configuration.db);
         var bucket = new GridFSBucket(db, { bucketName: 'gridfsdownload' });
         var CHUNKS_COLL = 'gridfsdownload.chunks';
         var FILES_COLL = 'gridfsdownload.files';
-        var readStream = fs.createReadStream('./LICENSE');
+        var readStream = fs.createReadStream('./LICENSE.md');
 
         var uploadStream = bucket.openUploadStream('test.dat');
         var id = uploadStream.id;
@@ -745,16 +748,16 @@ describe('GridFS Stream', function() {
       var GridFSBucket = configuration.require.GridFSBucket;
 
       var client = configuration.newClient(configuration.writeConcernMax(), { poolSize: 1 });
+      // LINE var MongoClient = require('mongodb').MongoClient,
+      // LINE   test = require('assert');
+      // LINE const client = new MongoClient('mongodb://localhost:27017/test');
+      // LINE const db = client.db('test);
+      // REPLACE configuration.writeConcernMax() WITH {w:1}
+      // REMOVE-LINE restartAndDone
+      // REMOVE-LINE done();
+      // REMOVE-LINE var db = client.db(configuration.db);
+      // BEGIN
       client.connect(function(err, client) {
-        // LINE var MongoClient = require('mongodb').MongoClient,
-        // LINE   test = require('assert');
-        // LINE MongoClient.connect('mongodb://localhost:27017/test', function(err, client) {
-        // LINE   var db = client.db('test);
-        // REPLACE configuration.writeConcernMax() WITH {w:1}
-        // REMOVE-LINE restartAndDone
-        // REMOVE-LINE done();
-        // REMOVE-LINE var db = client.db(configuration.db);
-        // BEGIN
         var db = client.db(configuration.db);
         var bucket = new GridFSBucket(db, { bucketName: 'fs' });
 
@@ -791,21 +794,21 @@ describe('GridFS Stream', function() {
       var GridFSBucket = configuration.require.GridFSBucket;
 
       var client = configuration.newClient(configuration.writeConcernMax(), { poolSize: 1 });
+      // LINE var MongoClient = require('mongodb').MongoClient,
+      // LINE   test = require('assert');
+      // LINE const client = new MongoClient('mongodb://localhost:27017/test');
+      // LINE const db = client.db('test);
+      // REPLACE configuration.writeConcernMax() WITH {w:1}
+      // REMOVE-LINE restartAndDone
+      // REMOVE-LINE done();
+      // REMOVE-LINE var db = client.db(configuration.db);
+      // BEGIN
       client.connect(function(err, client) {
-        // LINE var MongoClient = require('mongodb').MongoClient,
-        // LINE   test = require('assert');
-        // LINE MongoClient.connect('mongodb://localhost:27017/test', function(err, client) {
-        // LINE   var db = client.db('test);
-        // REPLACE configuration.writeConcernMax() WITH {w:1}
-        // REMOVE-LINE restartAndDone
-        // REMOVE-LINE done();
-        // REMOVE-LINE var db = client.db(configuration.db);
-        // BEGIN
         var db = client.db(configuration.db);
         var bucket = new GridFSBucket(db, { bucketName: 'gridfsdownload' });
         var CHUNKS_COLL = 'gridfsdownload.chunks';
         var FILES_COLL = 'gridfsdownload.files';
-        var readStream = fs.createReadStream('./LICENSE');
+        var readStream = fs.createReadStream('./LICENSE.md');
 
         var uploadStream = bucket.openUploadStream('test.dat');
         var id = uploadStream.id;
@@ -853,21 +856,21 @@ describe('GridFS Stream', function() {
       var GridFSBucket = configuration.require.GridFSBucket;
 
       var client = configuration.newClient(configuration.writeConcernMax(), { poolSize: 1 });
+      // LINE var MongoClient = require('mongodb').MongoClient,
+      // LINE   test = require('assert');
+      // LINE const client = new MongoClient('mongodb://localhost:27017/test');
+      // LINE const db = client.db('test);
+      // REPLACE configuration.writeConcernMax() WITH {w:1}
+      // REMOVE-LINE restartAndDone
+      // REMOVE-LINE done();
+      // REMOVE-LINE var db = client.db(configuration.db);
+      // BEGIN
       client.connect(function(err, client) {
-        // LINE var MongoClient = require('mongodb').MongoClient,
-        // LINE   test = require('assert');
-        // LINE MongoClient.connect('mongodb://localhost:27017/test', function(err, client) {
-        // LINE   var db = client.db('test);
-        // REPLACE configuration.writeConcernMax() WITH {w:1}
-        // REMOVE-LINE restartAndDone
-        // REMOVE-LINE done();
-        // REMOVE-LINE var db = client.db(configuration.db);
-        // BEGIN
         var db = client.db(configuration.db);
         var bucket = new GridFSBucket(db, { bucketName: 'gridfsdownload' });
         var CHUNKS_COLL = 'gridfsdownload.chunks';
         var FILES_COLL = 'gridfsdownload.files';
-        var readStream = fs.createReadStream('./LICENSE');
+        var readStream = fs.createReadStream('./LICENSE.md');
 
         var uploadStream = bucket.openUploadStream('test.dat');
         var id = uploadStream.id;
@@ -913,19 +916,19 @@ describe('GridFS Stream', function() {
       var GridFSBucket = configuration.require.GridFSBucket;
 
       var client = configuration.newClient(configuration.writeConcernMax(), { poolSize: 1 });
+      // LINE var MongoClient = require('mongodb').MongoClient,
+      // LINE   test = require('assert');
+      // LINE const client = new MongoClient('mongodb://localhost:27017/test');
+      // LINE const db = client.db('test);
+      // REPLACE configuration.writeConcernMax() WITH {w:1}
+      // REMOVE-LINE restartAndDone
+      // REMOVE-LINE done();
+      // REMOVE-LINE var db = client.db(configuration.db);
+      // BEGIN
       client.connect(function(err, client) {
-        // LINE var MongoClient = require('mongodb').MongoClient,
-        // LINE   test = require('assert');
-        // LINE MongoClient.connect('mongodb://localhost:27017/test', function(err, client) {
-        // LINE   var db = client.db('test);
-        // REPLACE configuration.writeConcernMax() WITH {w:1}
-        // REMOVE-LINE restartAndDone
-        // REMOVE-LINE done();
-        // REMOVE-LINE var db = client.db(configuration.db);
-        // BEGIN
         var db = client.db(configuration.db);
         var bucket = new GridFSBucket(db, { bucketName: 'gridfsdownload_2' });
-        var readStream = fs.createReadStream('./LICENSE');
+        var readStream = fs.createReadStream('./LICENSE.md');
 
         var uploadStream = bucket.openUploadStream('test.dat');
 
@@ -960,19 +963,19 @@ describe('GridFS Stream', function() {
       var GridFSBucket = configuration.require.GridFSBucket;
 
       var client = configuration.newClient(configuration.writeConcernMax(), { poolSize: 1 });
+      // LINE var MongoClient = require('mongodb').MongoClient,
+      // LINE   test = require('assert');
+      // LINE const client = new MongoClient('mongodb://localhost:27017/test');
+      // LINE const db = client.db('test);
+      // REPLACE configuration.writeConcernMax() WITH {w:1}
+      // REMOVE-LINE restartAndDone
+      // REMOVE-LINE done();
+      // REMOVE-LINE var db = client.db(configuration.db);
+      // BEGIN
       client.connect(function(err, client) {
-        // LINE var MongoClient = require('mongodb').MongoClient,
-        // LINE   test = require('assert');
-        // LINE MongoClient.connect('mongodb://localhost:27017/test', function(err, client) {
-        // LINE   var db = client.db('test);
-        // REPLACE configuration.writeConcernMax() WITH {w:1}
-        // REMOVE-LINE restartAndDone
-        // REMOVE-LINE done();
-        // REMOVE-LINE var db = client.db(configuration.db);
-        // BEGIN
         var db = client.db(configuration.db);
         var bucket = new GridFSBucket(db, { bucketName: 'gridfsdownload_3' });
-        var readStream = fs.createReadStream('./LICENSE');
+        var readStream = fs.createReadStream('./LICENSE.md');
 
         var uploadStream = bucket.openUploadStream('test.dat');
         var id = uploadStream.id;
@@ -1034,6 +1037,47 @@ describe('GridFS Stream', function() {
     }
   });
 
+  it('should use chunkSize for download', {
+    metadata: { requires: { topology: ['single'] } },
+
+    // The actual test we wish to run
+    test: function(done) {
+      if (typeof stream.pipeline !== 'function') {
+        this.skip();
+      }
+
+      const configuration = this.configuration;
+      const GridFSBucket = configuration.require.GridFSBucket;
+
+      const client = configuration.newClient(configuration.writeConcernMax(), { poolSize: 1 });
+      client.connect(function(err, client) {
+        const db = client.db(configuration.db);
+        const bucket = new GridFSBucket(db, { bucketName: 'gridfs' });
+
+        const uploadStream = bucket.openUploadStream('test');
+        uploadStream.end(Buffer.alloc(40 * 1024 * 1024), err => {
+          expect(err).to.be.null;
+          const range = {
+            start: 35191617,
+            end: 35192831
+          };
+          const downloadStream = bucket.openDownloadStreamByName('test', range);
+          const outputStream = fs.createWriteStream('output');
+          stream.pipeline(downloadStream, outputStream, err => {
+            expect(err).to.not.exist;
+            client.close(() => {
+              fs.stat('output', (err, stats) => {
+                expect(err).to.be.null;
+                expect(range.end - range.start).to.equal(stats.size);
+                done();
+              });
+            });
+          });
+        });
+      });
+    }
+  });
+
   var UPLOAD_SPEC = require('./spec/gridfs/gridfs-upload.json');
   UPLOAD_SPEC.tests.forEach(function(specTest) {
     (function(testSpec) {
@@ -1055,7 +1099,7 @@ describe('GridFS Stream', function() {
                 testSpec.act.arguments.filename,
                 testSpec.act.arguments.options
               );
-              var buf = new Buffer(testSpec.act.arguments.source.$hex, 'hex');
+              var buf = Buffer.from(testSpec.act.arguments.source.$hex, 'hex');
 
               res.on('error', function(err) {
                 test.equal(null, err);
@@ -1112,7 +1156,7 @@ describe('GridFS Stream', function() {
 
               var _runTest = function() {
                 var bucket = new GridFSBucket(db, { bucketName: BUCKET_NAME });
-                var res = new Buffer(0);
+                var res = Buffer.alloc(0);
 
                 var download = bucket.openDownloadStream(
                   EJSON.parse(JSON.stringify(testSpec.act.arguments.id), { relaxed: true })
@@ -1235,7 +1279,7 @@ describe('GridFS Stream', function() {
     keys.forEach(function(key) {
       if (doc[key] && typeof doc[key] === 'object') {
         if (doc[key].$hex != null) {
-          doc[key] = new Buffer(doc[key].$hex, 'hex');
+          doc[key] = Buffer.from(doc[key].$hex, 'hex');
         } else {
           convert$hexToBuffer(doc[key]);
         }
@@ -1286,16 +1330,16 @@ describe('GridFS Stream', function() {
       var configuration = this.configuration;
       var GridFSBucket = configuration.require.GridFSBucket;
       var client = configuration.newClient(configuration.writeConcernMax(), { poolSize: 1 });
+      // LINE var MongoClient = require('mongodb').MongoClient,
+      // LINE   test = require('assert');
+      // LINE const client = new MongoClient('mongodb://localhost:27017/test');
+      // LINE const db = client.db('test);
+      // REPLACE configuration.writeConcernMax() WITH {w:1}
+      // REMOVE-LINE restartAndDone
+      // REMOVE-LINE done();
+      // REMOVE-LINE var db = client.db(configuration.db);
+      // BEGIN
       client.connect(function(err, client) {
-        // LINE var MongoClient = require('mongodb').MongoClient,
-        // LINE   test = require('assert');
-        // LINE MongoClient.connect('mongodb://localhost:27017/test', function(err, client) {
-        // LINE   var db = client.db('test);
-        // REPLACE configuration.writeConcernMax() WITH {w:1}
-        // REMOVE-LINE restartAndDone
-        // REMOVE-LINE done();
-        // REMOVE-LINE var db = client.db(configuration.db);
-        // BEGIN
         var db = client.db(configuration.db);
         var bucket = new GridFSBucket(db, { bucketName: 'gridfsabort', chunkSizeBytes: 1 });
         var CHUNKS_COLL = 'gridfsabort.chunks';
@@ -1355,23 +1399,23 @@ describe('GridFS Stream', function() {
       var GridFSBucket = configuration.require.GridFSBucket;
 
       var client = configuration.newClient(configuration.writeConcernMax(), { poolSize: 1 });
+      // LINE var MongoClient = require('mongodb').MongoClient,
+      // LINE   test = require('assert');
+      // LINE const client = new MongoClient('mongodb://localhost:27017/test');
+      // LINE const db = client.db('test);
+      // REPLACE configuration.writeConcernMax() WITH {w:1}
+      // REMOVE-LINE restartAndDone
+      // REMOVE-LINE done();
+      // REMOVE-LINE var db = client.db(configuration.db);
+      // BEGIN
       client.connect(function(err, client) {
-        // LINE var MongoClient = require('mongodb').MongoClient,
-        // LINE   test = require('assert');
-        // LINE MongoClient.connect('mongodb://localhost:27017/test', function(err, client) {
-        // LINE   var db = client.db('test);
-        // REPLACE configuration.writeConcernMax() WITH {w:1}
-        // REMOVE-LINE restartAndDone
-        // REMOVE-LINE done();
-        // REMOVE-LINE var db = client.db(configuration.db);
-        // BEGIN
         var db = client.db(configuration.db);
         var bucket = new GridFSBucket(db, {
           bucketName: 'gridfsdownload',
           chunkSizeBytes: 20
         });
 
-        var readStream = fs.createReadStream('./LICENSE');
+        var readStream = fs.createReadStream('./LICENSE.md');
         var uploadStream = bucket.openUploadStream('teststart.dat');
 
         uploadStream.once('finish', function() {

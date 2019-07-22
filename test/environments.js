@@ -63,10 +63,6 @@ class ReplicaSetEnvironment extends EnvironmentBase {
       genReplsetConfig(31004, { arbiter: true })
     ];
 
-    this.manager = new ReplSetManager('mongod', this.nodes, {
-      replSet: 'rs'
-    });
-
     // Do we have 3.2+
     const version = discoverResult.version.join('.');
     if (semver.satisfies(version, '>=3.2.0')) {
@@ -75,6 +71,10 @@ class ReplicaSetEnvironment extends EnvironmentBase {
         return x;
       });
     }
+
+    this.manager = new ReplSetManager('mongod', this.nodes, {
+      replSet: 'rs'
+    });
   }
 }
 
@@ -115,7 +115,8 @@ const genConfigNode = (port, options) => {
       options: {
         bind_ip: 'localhost',
         port: port,
-        dbpath: `${__dirname}/../db/${port}`
+        dbpath: `${__dirname}/../db/${port}`,
+        setParameter: ['enableTestCommands=1']
       }
     },
     options
@@ -126,12 +127,12 @@ const genConfigNode = (port, options) => {
  *
  */
 class ShardedEnvironment extends EnvironmentBase {
-  constructor() {
+  constructor(discoverResult) {
     super();
 
     this.host = 'localhost';
     this.port = 51000;
-    this.url = 'mongodb://%slocalhost:51000/integration_tests';
+    this.url = 'mongodb://%slocalhost:51000,localhost:51001/integration_tests';
     this.writeConcernMax = { w: 'majority', wtimeout: 30000 };
     this.topology = function(host, port, options) {
       options = options || {};
@@ -140,6 +141,9 @@ class ShardedEnvironment extends EnvironmentBase {
       return new Mongos([new Server(host, port, options)], options);
     };
 
+    const version =
+      discoverResult && discoverResult.version ? discoverResult.version.join('.') : null;
+    this.server37631WorkaroundNeeded = semver.satisfies(version, '3.6.x');
     this.manager = new ShardingManager({
       mongod: 'mongod',
       mongos: 'mongos'
@@ -156,30 +160,21 @@ class ShardedEnvironment extends EnvironmentBase {
       genShardedConfig(31012, { arbiter: true }, shardOptions)
     ];
 
-    // second set of nodes
-    const nodes2 = [
-      genShardedConfig(31020, { tags: { loc: 'ny' } }, shardOptions),
-      genShardedConfig(31021, { tags: { loc: 'sf' } }, shardOptions),
-      genShardedConfig(31022, { arbiter: true }, shardOptions)
-    ];
-
     const configOptions = this.options && this.options.config ? this.options.config : {};
-    const configNodes = [
-      genConfigNode(35000, configOptions),
-      genConfigNode(35001, configOptions),
-      genConfigNode(35002, configOptions)
-    ];
+    const configNodes = [genConfigNode(35000, configOptions)];
 
     let proxyNodes = [
       {
         bind_ip: 'localhost',
         port: 51000,
-        configdb: 'localhost:35000,localhost:35001,localhost:35002'
+        configdb: 'localhost:35000,localhost:35001,localhost:35002',
+        setParameter: ['enableTestCommands=1']
       },
       {
         bind_ip: 'localhost',
         port: 51001,
-        configdb: 'localhost:35000,localhost:35001,localhost:35002'
+        configdb: 'localhost:35000,localhost:35001,localhost:35002',
+        setParameter: ['enableTestCommands=1']
       }
     ];
 
@@ -195,10 +190,11 @@ class ShardedEnvironment extends EnvironmentBase {
       return x;
     });
 
-    Promise.all([
-      this.manager.addShard(nodes1, { replSet: 'rs1' }),
-      this.manager.addShard(nodes2, { replSet: 'rs2' })
-    ])
+    this.proxies = proxyNodes.map(proxy => {
+      return { host: proxy.bind_ip, port: proxy.port };
+    });
+
+    Promise.all([this.manager.addShard(nodes1, { replSet: 'rs1' })])
       .then(() => this.manager.addConfigurationServers(configNodes, { replSet: 'rs3' }))
       .then(() => this.manager.addProxies(proxyNodes, { binary: 'mongos' }))
       .then(() => callback())
@@ -269,5 +265,10 @@ module.exports = {
   // informational aliases
   kerberos: SingleEnvironment,
   ldap: SingleEnvironment,
-  sni: SingleEnvironment
+  sni: SingleEnvironment,
+
+  // for compatability with evergreen template
+  server: SingleEnvironment,
+  replica_set: ReplicaSetEnvironment,
+  sharded_cluster: ShardedEnvironment
 };

@@ -7,6 +7,24 @@ title = "Upgrade Guide"
   pre = "<i class='fa fa-cog'></i>"
 +++
 
+# What's new in 3.2
+
+- Supports new "Unified Topology" for resolving servers (opt in with `useUnifiedTopology` option for `MongoClient`)
+- Supports `session.withTransaction` helper
+- Supports Asynchronous Iteration (`for await...` syntax) on cursors
+- Supports Database-level Aggregations (`db.aggregate(pipeline, options)`)
+
+[Full 3.2 Changes Here](https://github.com/mongodb/node-mongodb-native/releases/tag/v3.2.1)
+
+# What's new in 3.1
+
+- Support for MongoDB version 4.0
+- Support for Transactions
+- Support for authentication with SCRAM-SHA-256
+- Support for new URL parser (opt in with `useNewUrlParser` option for `MongoClient`)
+
+[Full 3.1 Changes Here](https://github.com/mongodb/node-mongodb-native/blob/3.1/HISTORY.md#310-2018-06-27)
+
 # What's new in 3.0
 
 - Support added for Retryable Writes
@@ -15,7 +33,7 @@ title = "Upgrade Guide"
 - Support added for sessions
 - `MongoClient.connect` now returns a `Client` instead of a `DB`.
 
-[Full 3.0 Changes Here](https://github.com/mongodb/node-mongodb-native/blob/3.0.0/CHANGES_3.0.0.md)
+[Full 3.0 Changes Here](https://github.com/mongodb/node-mongodb-native/blob/master/CHANGES_3.0.0.md)
 
 # What's New in 2.3
 

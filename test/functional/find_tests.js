@@ -2,6 +2,7 @@
 const test = require('./shared').assert;
 const setupDatabase = require('./shared').setupDatabase;
 const expect = require('chai').expect;
+const Buffer = require('safe-buffer').Buffer;
 
 describe('Find', function() {
   before(function() {
@@ -2218,7 +2219,7 @@ describe('Find', function() {
               a: 1,
               b:
                 'helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld',
-              c: new Binary(new Buffer(1024))
+              c: new Binary(Buffer.alloc(1024))
             });
           }
 
@@ -2232,7 +2233,7 @@ describe('Find', function() {
                 a: 1,
                 b:
                   'helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld helloworld',
-                c: new Binary(new Buffer(1024))
+                c: new Binary(Buffer.alloc(1024))
               });
             }
 
@@ -2412,7 +2413,7 @@ describe('Find', function() {
   it('Should correctly execute parallelCollectionScan with multiple cursors using each', {
     // Add a tag that our runner can trigger on
     // in this case we are setting that node needs to be higher than 0.10.X to run
-    metadata: { requires: { mongodb: '>2.5.5', topology: ['single', 'replicaset'] } },
+    metadata: { requires: { mongodb: '>2.5.5 <=4.1.0', topology: ['single', 'replicaset'] } },
 
     // The actual test we wish to run
     test: function(done) {
@@ -2477,7 +2478,7 @@ describe('Find', function() {
   it('Should correctly execute parallelCollectionScan with multiple cursors using next', {
     // Add a tag that our runner can trigger on
     // in this case we are setting that node needs to be higher than 0.10.X to run
-    metadata: { requires: { mongodb: '>2.5.5', topology: ['single', 'replicaset'] } },
+    metadata: { requires: { mongodb: '>2.5.5 <=4.1.0', topology: ['single', 'replicaset'] } },
 
     // The actual test we wish to run
     test: function(done) {
@@ -2535,7 +2536,7 @@ describe('Find', function() {
   it('Should correctly execute parallelCollectionScan with single cursor and close', {
     // Add a tag that our runner can trigger on
     // in this case we are setting that node needs to be higher than 0.10.X to run
-    metadata: { requires: { mongodb: '>2.5.5', topology: ['single', 'replicaset'] } },
+    metadata: { requires: { mongodb: '>2.5.5 <=4.1.0', topology: ['single', 'replicaset'] } },
 
     // The actual test we wish to run
     test: function(done) {
@@ -2579,7 +2580,7 @@ describe('Find', function() {
   it('Should correctly execute parallelCollectionScan with single cursor streaming', {
     // Add a tag that our runner can trigger on
     // in this case we are setting that node needs to be higher than 0.10.X to run
-    metadata: { requires: { mongodb: '>2.5.5', topology: ['single', 'replicaset'] } },
+    metadata: { requires: { mongodb: '>2.5.5 <=4.1.0', topology: ['single', 'replicaset'] } },
 
     // The actual test we wish to run
     test: function(done) {
@@ -2617,6 +2618,59 @@ describe('Find', function() {
               test.equal(true, cursors[0].isClosed());
               client.close();
               done();
+            });
+          });
+        });
+      });
+    }
+  });
+
+  it('Should not use a session when using parallelCollectionScan', {
+    metadata: {
+      requires: {
+        mongodb: '>=3.6.0 <= 4.1.0',
+        topology: ['single', 'replicaset']
+      }
+    },
+    test: function(done) {
+      const configuration = this.configuration;
+      const client = configuration.newClient();
+
+      client.connect(function(err, client) {
+        var db = client.db(configuration.db);
+        var docs = [];
+
+        // Insert some documents
+        for (var i = 0; i < 1000; i++) {
+          docs.push({ a: i });
+        }
+
+        // Get the collection
+        var collection = db.collection('parallelCollectionScan_4');
+        // Insert 1000 documents in a batch
+        collection.insert(docs, function(err) {
+          expect(err).to.be.null;
+          var numCursors = 1;
+
+          // Execute parallelCollectionScan command
+          collection.parallelCollectionScan({ numCursors: numCursors }, function(err, cursors) {
+            expect(err).to.be.null;
+            expect(cursors)
+              .to.be.an('array')
+              .with.lengthOf(1);
+
+            const cursor = cursors[0];
+
+            expect(cursor).to.not.have.nested.property('s.session');
+            expect(cursor)
+              .to.have.nested.property('s.explicitlyIgnoreSession')
+              .that.equals(true);
+
+            cursor.toArray(err => {
+              expect(err).to.be.null;
+              expect(cursor).to.not.have.nested.property('s.session');
+
+              cursor.close().then(() => client.close().then(() => done()));
             });
           });
         });
@@ -2700,7 +2754,7 @@ describe('Find', function() {
     {
       // Add a tag that our runner can trigger on
       // in this case we are setting that node needs to be higher than 0.10.X to run
-      metadata: { requires: { mongodb: '>2.5.5', topology: ['single', 'replicaset'] } },
+      metadata: { requires: { mongodb: '>2.5.5 <=4.1.0', topology: ['single', 'replicaset'] } },
 
       // The actual test we wish to run
       test: function(done) {
@@ -3041,35 +3095,29 @@ describe('Find', function() {
       });
 
       var configuration = this.configuration;
-      var MongoClient = configuration.require.MongoClient;
-      MongoClient.connect(
-        configuration.url(),
-        {
-          ignoreUndefined: true
-        },
-        function(err, client) {
-          var db = client.db(configuration.db);
-          var collection = db.collection('test_find_simple_cursor_inheritance');
+      const client = configuration.newClient({}, { ignoreUndefined: true });
+      client.connect(function(err, client) {
+        var db = client.db(configuration.db);
+        var collection = db.collection('test_find_simple_cursor_inheritance');
 
-          // Insert some test documents
-          collection.insert([{ a: 2 }, { b: 3, c: undefined }], function(err) {
-            test.equal(null, err);
-            // Ensure correct insertion testing via the cursor and the count function
-            var cursor = collection.find({ c: undefined });
-            test.equal(true, cursor.s.options.ignoreUndefined);
+        // Insert some test documents
+        collection.insert([{ a: 2 }, { b: 3, c: undefined }], function(err) {
+          test.equal(null, err);
+          // Ensure correct insertion testing via the cursor and the count function
+          var cursor = collection.find({ c: undefined });
+          test.equal(true, cursor.s.options.ignoreUndefined);
 
-            cursor.toArray(function(err, documents) {
-              test.equal(2, documents.length);
-              // process.exit(0)
-              listener.uninstrument();
+          cursor.toArray(function(err, documents) {
+            test.equal(2, documents.length);
+            // process.exit(0)
+            listener.uninstrument();
 
-              // Let's close the db
-              client.close();
-              done();
-            });
+            // Let's close the db
+            client.close();
+            done();
           });
-        }
-      );
+        });
+      });
     }
   });
 });

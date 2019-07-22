@@ -1,7 +1,11 @@
 'use strict';
 const test = require('./shared').assert;
 const setupDatabase = require('./shared').setupDatabase;
-const expect = require('chai').expect;
+const chai = require('chai');
+const expect = chai.expect;
+const sinonChai = require('sinon-chai');
+const mock = require('mongodb-mock-server');
+chai.use(sinonChai);
 
 describe('Collection', function() {
   before(function() {
@@ -488,6 +492,34 @@ describe('Collection', function() {
           test.equal('collection names cannot be empty', err.message);
           client.close();
           done();
+        });
+      });
+    }
+  });
+
+  it('should return invalid collection name error by callback for createCollection', {
+    metadata: {
+      requires: { topology: ['single', 'replicaset', 'sharded', 'ssl', 'heap', 'wiredtiger'] }
+    },
+
+    test: function(done) {
+      const client = this.configuration.newClient(this.configuration.writeConcernMax(), {
+        poolSize: 1
+      });
+
+      client.connect((err, client) => {
+        expect(err).to.not.exist;
+
+        const db = client.db('test_crate_collection');
+
+        db.dropDatabase(err => {
+          expect(err).to.not.exist;
+
+          db.createCollection('test/../', err => {
+            expect(err).to.exist;
+            client.close();
+            done();
+          });
         });
       });
     }
@@ -1579,5 +1611,311 @@ describe('Collection', function() {
           return client.close();
         });
     }
+  });
+
+  it('should correctly perform estimatedDocumentCount on non-matching query', function(done) {
+    const configuration = this.configuration;
+    const client = configuration.newClient({}, { w: 1 });
+
+    client.connect(function(err, client) {
+      const db = client.db(configuration.db);
+      const collection = db.collection('nonexistent_coll_1');
+      const close = e => client.close(() => done(e));
+
+      Promise.resolve()
+        .then(() => collection.estimatedDocumentCount({ a: 'b' }))
+        .then(count => expect(count).to.equal(0))
+        .then(() => close())
+        .catch(e => close(e));
+    });
+  });
+
+  it('should correctly perform countDocuments on non-matching query', function(done) {
+    const configuration = this.configuration;
+    const client = configuration.newClient({}, { w: 1 });
+
+    client.connect(function(err, client) {
+      const db = client.db(configuration.db);
+      const collection = db.collection('nonexistent_coll_2');
+      const close = e => client.close(() => done(e));
+
+      Promise.resolve()
+        .then(() => collection.countDocuments({ a: 'b' }))
+        .then(count => expect(count).to.equal(0))
+        .then(() => close())
+        .catch(e => close(e));
+    });
+  });
+
+  it('countDocuments should return Promise that resolves when no callback passed', function(done) {
+    const configuration = this.configuration;
+    const client = configuration.newClient({}, { w: 1 });
+
+    client.connect(function(err, client) {
+      const db = client.db(configuration.db);
+      const collection = db.collection('countDoc_return_promise');
+      const docsPromise = collection.countDocuments();
+      const close = e => client.close(() => done(e));
+
+      expect(docsPromise).to.exist.and.to.be.an.instanceof(collection.s.promiseLibrary);
+
+      docsPromise
+        .then(result => expect(result).to.equal(0))
+        .then(() => close())
+        .catch(e => close(e));
+    });
+  });
+
+  it('countDocuments should not return a promise if callback given', function(done) {
+    const configuration = this.configuration;
+    const client = configuration.newClient({}, { w: 1 });
+
+    client.connect(function(err, client) {
+      const db = client.db(configuration.db);
+      const collection = db.collection('countDoc_no_promise');
+      const close = e => client.close(() => done(e));
+
+      const notPromise = collection.countDocuments({ a: 1 }, function() {
+        expect(notPromise).to.be.undefined;
+        close();
+      });
+    });
+  });
+
+  it('countDocuments should correctly call the given callback', function(done) {
+    const configuration = this.configuration;
+    const client = configuration.newClient({}, { w: 1 });
+
+    client.connect(function(err, client) {
+      const db = client.db(configuration.db);
+      const collection = db.collection('countDoc_callback');
+      const docs = [{ a: 1 }, { a: 2 }];
+      const close = e => client.close(() => done(e));
+
+      collection.insertMany(docs).then(() =>
+        collection.countDocuments({ a: 1 }, (err, data) => {
+          expect(data).to.equal(1);
+          close(err);
+        })
+      );
+    });
+  });
+
+  describe('countDocuments with mock server', function() {
+    let server;
+
+    beforeEach(() => {
+      return mock.createServer().then(s => {
+        server = s;
+      });
+    });
+
+    afterEach(() => mock.cleanup());
+
+    function testCountDocMock(testConfiguration, config, done) {
+      const client = testConfiguration.newClient(`mongodb://${server.uri()}/test`);
+      const close = e => client.close(() => done(e));
+
+      server.setMessageHandler(request => {
+        const doc = request.document;
+        if (doc.aggregate) {
+          try {
+            config.replyHandler(doc);
+            request.reply(config.reply);
+          } catch (e) {
+            close(e);
+          }
+        }
+
+        if (doc.ismaster) {
+          request.reply(Object.assign({}, mock.DEFAULT_ISMASTER));
+        } else if (doc.endSessions) {
+          request.reply({ ok: 1 });
+        }
+      });
+
+      client.connect(function(err, client) {
+        const db = client.db('test');
+        const collection = db.collection('countDoc_mock');
+
+        config.executeCountDocuments(collection, close);
+      });
+    }
+
+    it('countDocuments should return appropriate error if aggregation fails with callback given', function(done) {
+      const replyHandler = () => {};
+      const executeCountDocuments = (collection, close) => {
+        collection.countDocuments(err => {
+          expect(err).to.exist;
+          expect(err.errmsg).to.equal('aggregation error - callback');
+          close();
+        });
+      };
+
+      testCountDocMock(
+        this.configuration,
+        {
+          replyHandler,
+          executeCountDocuments,
+          reply: { ok: 0, errmsg: 'aggregation error - callback' }
+        },
+        done
+      );
+    });
+
+    it('countDocuments should error if aggregation fails using Promises', function(done) {
+      const replyHandler = () => {};
+      const executeCountDocuments = (collection, close) => {
+        collection
+          .countDocuments()
+          .then(() => expect(false).to.equal(true)) // should never get here; error should be caught
+          .catch(e => {
+            expect(e.errmsg).to.equal('aggregation error - promise');
+            close();
+          });
+      };
+
+      testCountDocMock(
+        this.configuration,
+        {
+          replyHandler,
+          executeCountDocuments,
+          reply: { ok: 0, errmsg: 'aggregation error - promise' }
+        },
+        done
+      );
+    });
+
+    it('countDocuments pipeline should be correct with skip and limit applied', function(done) {
+      const replyHandler = doc => {
+        expect(doc.pipeline).to.deep.include({ $skip: 1 });
+        expect(doc.pipeline).to.deep.include({ $limit: 1 });
+      };
+      const executeCountDocuments = (collection, close) => {
+        collection.countDocuments({}, { limit: 1, skip: 1 }, err => {
+          expect(err).to.not.exist;
+          close();
+        });
+      };
+
+      testCountDocMock(
+        this.configuration,
+        {
+          replyHandler,
+          executeCountDocuments,
+          reply: { ok: 1 }
+        },
+        done
+      );
+    });
+  });
+
+  function testCapped(testConfiguration, config, done) {
+    const configuration = config.config;
+    const client = testConfiguration.newClient({}, { w: 1 });
+
+    client.connect(function(err, client) {
+      const db = client.db(configuration.db);
+      const close = e => client.close(() => done(e));
+
+      db
+        .createCollection(config.collName, config.opts)
+        .then(collection => collection.isCapped())
+        .then(capped => expect(capped).to.be.false)
+        .then(() => close())
+        .catch(e => close(e));
+    });
+  }
+
+  it('isCapped should return false for uncapped collections', function(done) {
+    testCapped(
+      this.configuration,
+      { config: this.configuration, collName: 'uncapped', opts: { capped: false } },
+      done
+    );
+  });
+
+  it('isCapped should return false for collections instantiated without specifying capped', function(done) {
+    testCapped(
+      this.configuration,
+      { config: this.configuration, collName: 'uncapped2', opts: {} },
+      done
+    );
+  });
+
+  describe('Retryable Writes on bulk ops', function() {
+    let client;
+    let db;
+    let collection;
+
+    const metadata = { requires: { topology: ['replicaset'], mongodb: '>=3.6.0' } };
+
+    beforeEach(function() {
+      client = this.configuration.newClient({}, { retryWrites: true });
+      return client.connect().then(() => {
+        db = client.db('test_retry_writes');
+        collection = db.collection('tests');
+
+        return Promise.resolve()
+          .then(() => db.dropDatabase())
+          .then(() => collection.insert({ name: 'foobar' }));
+      });
+    });
+
+    afterEach(function() {
+      return client.close();
+    });
+
+    it('should succeed with retryWrite=true when using updateMany', {
+      metadata,
+      test: function() {
+        return collection.updateMany({ name: 'foobar' }, { $set: { name: 'fizzbuzz' } });
+      }
+    });
+
+    it('should succeed with retryWrite=true when using update with multi=true', {
+      metadata,
+      test: function() {
+        return collection.update(
+          { name: 'foobar' },
+          { $set: { name: 'fizzbuzz' } },
+          { multi: true }
+        );
+      }
+    });
+
+    it('should succeed with retryWrite=true when using remove without option single', {
+      metadata,
+      test: function() {
+        return collection.remove({ name: 'foobar' });
+      }
+    });
+
+    it('should succeed with retryWrite=true when using deleteMany', {
+      metadata,
+      test: function() {
+        return collection.deleteMany({ name: 'foobar' });
+      }
+    });
+  });
+
+  it('should allow an empty replacement document for findOneAndReplace', function() {
+    const configuration = this.configuration;
+    const client = configuration.newClient({}, { w: 1 });
+
+    client.connect((err, client) => {
+      expect(err).to.be.null;
+
+      const db = client.db(configuration.db);
+      const collection = db.collection('find_one_and_replace');
+
+      collection.insertOne({ a: 1 }, err => {
+        expect(err).to.be.null;
+
+        expect(collection.findOneAndReplace.bind(collection, { a: 1 }, {})).to.not.throw();
+      });
+
+      client.close();
+    });
   });
 });

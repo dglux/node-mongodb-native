@@ -10,7 +10,7 @@ title = "Connection Settings"
 
 # URI Connection Settings
 
-Optional connection settings are settings not covered by the [URI Connection String ](https://docs.mongodb.org/manual/reference/connection-string/). The following options are passed in the options parameter in the MongoClient.connect function.
+Optional connection settings are settings not covered by the [URI Connection String ](https://docs.mongodb.org/manual/reference/connection-string/). The following options are passed in the options parameter when you create a mongo client.
 
 ```js
 const MongoClient = require('mongodb').MongoClient;
@@ -20,11 +20,14 @@ const assert = require('assert');
 const url = 'mongodb://localhost:50000,localhost:50001';
 // Database Name
 const dbName = 'myproject';
-// Use connect method to connect to the Server passing in
-// additional options
-MongoClient.connect(url, {
+
+// create a client, passing in additional options
+const client = new MongoClient(url, {
   poolSize: 10, ssl: true
-}, function(err, client) {
+});
+
+// Use connect method to connect to the server
+client.connect(function(err) {
   assert.equal(null, err);
   console.log("Connected correctly to server");
 
@@ -38,7 +41,7 @@ The table below shows all settings and what topology they affect.
 | :----------| :------------------ | :------ | :------ |:------------- |
 | **poolSize** | Server, ReplicaSet, Mongos | integer | 5 | Set the maximum poolSize for each individual server or proxy connection.|
 | **ssl** | Server, ReplicaSet, Mongos | boolean | false | Use ssl connection |
-| **sslValidate** | Server, ReplicaSet, Mongos | boolean | true | Validate mongod server certificate against ca |
+| **sslValidate** | Server, ReplicaSet, Mongos | boolean | false | Validate mongod server certificate against ca |
 | **sslCA** | Server, ReplicaSet, Mongos | Array | null | Array of valid certificates either as Buffers or Strings |
 | **sslCert** | Server, ReplicaSet, Mongos | Buffer/String | null | String or buffer containing the certificate we wish to present |
 | **sslKey** | Server, ReplicaSet, Mongos | Buffer/String | null | String or buffer containing the certificate private key we wish to present |

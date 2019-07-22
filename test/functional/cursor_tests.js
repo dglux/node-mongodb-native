@@ -4,6 +4,9 @@ const setupDatabase = require('./shared').setupDatabase;
 const fs = require('fs');
 const expect = require('chai').expect;
 const Long = require('bson').Long;
+const sinon = require('sinon');
+const ReadPreference = require('mongodb-core').ReadPreference;
+const Buffer = require('safe-buffer').Buffer;
 
 describe('Cursor', function() {
   before(function() {
@@ -274,6 +277,43 @@ describe('Cursor', function() {
               finished();
             });
           });
+        });
+      });
+    }
+  });
+
+  it('Should correctly execute cursor count with secondary readPreference', {
+    // Add a tag that our runner can trigger on
+    // in this case we are setting that node needs to be higher than 0.10.X to run
+    metadata: {
+      requires: { topology: 'replicaset' }
+    },
+
+    // The actual test we wish to run
+    test: function(done) {
+      const configuration = this.configuration;
+      const client = configuration.newClient(configuration.writeConcernMax(), { poolSize: 1 });
+
+      client.connect((err, client) => {
+        const db = client.db(configuration.db);
+
+        let internalClientCursor;
+        if (configuration.usingUnifiedTopology()) {
+          internalClientCursor = sinon.spy(client.topology, 'cursor');
+        } else {
+          internalClientCursor = sinon.spy(client.topology.s.coreTopology, 'cursor');
+        }
+
+        const expectedReadPreference = new ReadPreference(ReadPreference.SECONDARY);
+
+        const cursor = db.collection('countTEST').find({ qty: { $gt: 4 } });
+        cursor.count(true, { readPreference: ReadPreference.SECONDARY }, err => {
+          expect(err).to.be.null;
+          expect(internalClientCursor.getCall(0).args[2])
+            .to.have.nested.property('readPreference')
+            .that.deep.equals(expectedReadPreference);
+          client.close();
+          done();
         });
       });
     }
@@ -2060,7 +2100,8 @@ describe('Cursor', function() {
    * @ignore
    * @api private
    */
-  it('cursor stream errors', {
+  // NOTE: skipped for use of topology manager
+  it.skip('cursor stream errors', {
     // Add a tag that our runner can trigger on
     // in this case we are setting that node needs to be higher than 0.10.X to run
     metadata: { requires: { topology: ['single'] } },
@@ -2162,7 +2203,7 @@ describe('Cursor', function() {
               if (++i === 5) {
                 client.topology
                   .connections()[0]
-                  .write(new Buffer('312312321321askdjljsaNCKnablibh'));
+                  .write(Buffer.from('312312321321askdjljsaNCKnablibh'));
               }
             });
 
@@ -4077,7 +4118,7 @@ describe('Cursor', function() {
     }
   });
 
-  it('Correcly decorate the cursor count command with skip, limit, hint, readConcern', {
+  it('Correctly decorate the cursor count command with skip, limit, hint, readConcern', {
     // Add a tag that our runner can trigger on
     // in this case we are setting that node needs to be higher than 0.10.X to run
     metadata: {
@@ -4125,7 +4166,7 @@ describe('Cursor', function() {
     }
   });
 
-  it('Correcly decorate the collection cursor count command with skip, limit, hint, readConcern', {
+  it('Correctly decorate the collection cursor count command with skip, limit, hint, readConcern', {
     // Add a tag that our runner can trigger on
     // in this case we are setting that node needs to be higher than 0.10.X to run
     metadata: {
@@ -4421,6 +4462,117 @@ describe('Cursor', function() {
             cursor.close(() => client.close(() => done(err)));
           });
       });
+    });
+  });
+
+  function testTransformStream(config, done) {
+    const client = config.client;
+    const configuration = config.configuration;
+    const collectionName = config.collectionName;
+    const transformFunc = config.transformFunc;
+    const expectedSet = config.expectedSet;
+
+    client.connect(function(err, client) {
+      const db = client.db(configuration.db);
+      let collection, cursor;
+      const docs = [
+        { _id: 0, a: { b: 1, c: 0 } },
+        { _id: 1, a: { b: 1, c: 0 } },
+        { _id: 2, a: { b: 1, c: 0 } }
+      ];
+      const resultSet = new Set();
+      const transformParam = transformFunc != null ? { transform: transformFunc } : null;
+      const close = e => cursor.close(() => client.close(() => done(e)));
+
+      Promise.resolve()
+        .then(() => db.createCollection(collectionName))
+        .then(() => (collection = db.collection(collectionName)))
+        .then(() => collection.insertMany(docs))
+        .then(() => collection.find())
+        .then(_cursor => (cursor = _cursor))
+        .then(() => cursor.transformStream(transformParam))
+        .then(stream => {
+          stream.on('data', function(doc) {
+            resultSet.add(doc);
+          });
+
+          stream.once('end', function() {
+            expect(resultSet).to.deep.equal(expectedSet);
+            close();
+          });
+
+          stream.once('error', function(e) {
+            close(e);
+          });
+        })
+        .catch(e => close(e));
+    });
+  }
+
+  it('transformStream should apply the supplied transformation function to each document in the stream', function(done) {
+    const configuration = this.configuration;
+    const client = configuration.newClient({ w: 1 }, { poolSize: 1, auto_reconnect: false });
+    const expectedDocs = [{ _id: 0, b: 1, c: 0 }, { _id: 1, b: 1, c: 0 }, { _id: 2, b: 1, c: 0 }];
+    const config = {
+      client: client,
+      configuration: configuration,
+      collectionName: 'transformStream-test-transform',
+      transformFunc: doc => ({ _id: doc._id, b: doc.a.b, c: doc.a.c }),
+      expectedSet: new Set(expectedDocs)
+    };
+
+    testTransformStream(config, done);
+  });
+
+  it('transformStream should return a stream of unmodified docs if no transform function applied', function(done) {
+    const configuration = this.configuration;
+    const client = configuration.newClient({ w: 1 }, { poolSize: 1, auto_reconnect: false });
+    const expectedDocs = [
+      { _id: 0, a: { b: 1, c: 0 } },
+      { _id: 1, a: { b: 1, c: 0 } },
+      { _id: 2, a: { b: 1, c: 0 } }
+    ];
+    const config = {
+      client: client,
+      configuration: configuration,
+      collectionName: 'transformStream-test-notransform',
+      transformFunc: null,
+      expectedSet: new Set(expectedDocs)
+    };
+
+    testTransformStream(config, done);
+  });
+
+  it('should apply parent read preference to count command', function(done) {
+    const configuration = this.configuration;
+    const ReadPreference = this.configuration.require.ReadPreference;
+    const client = configuration.newClient(
+      { w: 1, readPreference: ReadPreference.SECONDARY },
+      { poolSize: 1, auto_reconnect: false, connectWithNoPrimary: true }
+    );
+
+    client.connect(function(err, client) {
+      expect(err).to.not.exist;
+
+      const db = client.db(configuration.db);
+      let collection, cursor, spy;
+      const close = e => cursor.close(() => client.close(() => done(e)));
+
+      Promise.resolve()
+        .then(() => new Promise(resolve => setTimeout(() => resolve(), 500)))
+        .then(() => db.createCollection('test_count_readPreference'))
+        .then(() => (collection = db.collection('test_count_readPreference')))
+        .then(() => collection.find())
+        .then(_cursor => (cursor = _cursor))
+        .then(() => (spy = sinon.spy(cursor.s.topology, 'command')))
+        .then(() => cursor.count())
+        .then(() =>
+          expect(spy.firstCall.args[2])
+            .to.have.nested.property('readPreference.mode')
+            .that.equals('secondary')
+        )
+        .then(() => close())
+        .catch(e => close(e));
     });
   });
 });

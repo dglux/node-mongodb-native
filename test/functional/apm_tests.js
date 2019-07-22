@@ -1,6 +1,5 @@
 'use strict';
 
-const MongoClient = require('../..').MongoClient;
 const instrument = require('../..').instrument;
 const path = require('path');
 const fs = require('fs');
@@ -94,7 +93,7 @@ describe('APM', function() {
     }
   );
 
-  it('should support legacy `instrument`/`uninstrument` methods with MongoClient.connect', {
+  it('should support legacy `instrument`/`uninstrument` methods with MongoClient `connect`', {
     metadata: { requires: { topology: ['single', 'replicaset', 'sharded'] } },
 
     // The actual test we wish to run
@@ -106,8 +105,9 @@ describe('APM', function() {
       instrumentation.on('started', filterForCommands('insert', started));
       instrumentation.on('succeeded', filterForCommands('insert', succeeded));
 
-      const uri = this.configuration.url();
-      return MongoClient.connect(uri, { monitorCommands: true }).then(client => {
+      const firstClient = this.configuration.newClient({}, { monitorCommands: true });
+      const secondClient = this.configuration.newClient({}, { monitorCommands: true });
+      return firstClient.connect().then(client => {
         return client
           .db(this.configuration.db)
           .collection('apm_test')
@@ -124,7 +124,7 @@ describe('APM', function() {
           .then(() => {
             started = [];
             succeeded = [];
-            return MongoClient.connect(uri, { monitorCommands: true });
+            return secondClient.connect();
           })
           .then(newClient => {
             return newClient
@@ -266,7 +266,7 @@ describe('APM', function() {
       client.on('commandStarted', filterForCommands(desiredEvents, started));
       client.on('commandSucceeded', filterForCommands(desiredEvents, succeeded));
 
-      client.on('fullsetup', client => {
+      client.connect().then(() => {
         const db = client.db(self.configuration.db);
 
         db
@@ -295,8 +295,6 @@ describe('APM', function() {
             done();
           });
       });
-
-      client.connect();
     }
   });
 
@@ -416,7 +414,6 @@ describe('APM', function() {
               .limit(100)
               .batchSize(2)
               .comment('some comment')
-              .maxScan(1000)
               .maxTimeMS(5000)
               .setReadPreference(ReadPreference.PRIMARY)
               .addCursorFlag('noCursorTimeout', true)
@@ -491,7 +488,6 @@ describe('APM', function() {
               .limit(100)
               .batchSize(2)
               .comment('some comment')
-              .maxScan(1000)
               .maxTimeMS(5000)
               .setReadPreference(ReadPreference.PRIMARY)
               .addCursorFlag('noCursorTimeout', true)
@@ -787,7 +783,7 @@ describe('APM', function() {
     }
   });
 
-  it('should correcly decorate the apm result for aggregation with cursorId', {
+  it('should correctly decorate the apm result for aggregation with cursorId', {
     metadata: { requires: { topology: ['single', 'replicaset'], mongodb: '>=3.0.0' } },
 
     // The actual test we wish to run
@@ -840,7 +836,7 @@ describe('APM', function() {
     }
   });
 
-  it('should correcly decorate the apm result for listCollections with cursorId', {
+  it('should correctly decorate the apm result for listCollections with cursorId', {
     metadata: { requires: { topology: ['single', 'replicaset'], mongodb: '>=3.0.0' } },
     test: function() {
       const self = this;
@@ -888,7 +884,7 @@ describe('APM', function() {
 
   describe('spec tests', function() {
     before(function() {
-      setupDatabase(this.configuration);
+      return setupDatabase(this.configuration);
     });
 
     // TODO: The worst part about this custom validation method is that it does not
@@ -954,7 +950,7 @@ describe('APM', function() {
       expect(event.commandName).to.equal(expected.command_name);
     }
 
-    function validateExpecations(expectation, results) {
+    function validateExpectations(expectation, results) {
       if (expectation.command_started_event) {
         validateCommandStartedEvent(expectation.command_started_event, results.starts.shift());
       } else if (expectation.command_succeeded_event) {
@@ -1003,11 +999,17 @@ describe('APM', function() {
           expect(data).to.have.length(r.insertedCount);
 
           // Set up the listeners
-          client.on('commandStarted', filterOutCommands('endSessions', monitoringResults.starts));
-          client.on('commandFailed', filterOutCommands('endSessions', monitoringResults.failures));
+          client.on(
+            'commandStarted',
+            filterOutCommands(['ismaster', 'endSessions'], monitoringResults.starts)
+          );
+          client.on(
+            'commandFailed',
+            filterOutCommands(['ismaster', 'endSessions'], monitoringResults.failures)
+          );
           client.on(
             'commandSucceeded',
-            filterOutCommands('endSessions', monitoringResults.successes)
+            filterOutCommands(['ismaster', 'endSessions'], monitoringResults.successes)
           );
 
           // Unpack the operation
@@ -1068,7 +1070,7 @@ describe('APM', function() {
               .catch(() => {} /* ignore */)
               .then(() =>
                 test.expectations.forEach(expectation =>
-                  validateExpecations(expectation, monitoringResults)
+                  validateExpectations(expectation, monitoringResults)
                 )
               );
           }
@@ -1082,7 +1084,7 @@ describe('APM', function() {
             .catch(() => {} /* ignore */)
             .then(() =>
               test.expectations.forEach(expectation =>
-                validateExpecations(expectation, monitoringResults)
+                validateExpectations(expectation, monitoringResults)
               )
             );
         });
@@ -1107,12 +1109,17 @@ describe('APM', function() {
               requirements.mongodb = `>${test.ignore_if_server_version_less_than}`;
             }
 
+            if (test.ignore_if_topology_type) {
+              requirements.topology = requirements.topology.filter(
+                top => test.ignore_if_topology_type.indexOf(top) < 0
+              );
+            }
+
             it(test.description, {
               metadata: { requires: requirements },
               test: function() {
-                return MongoClient.connect(this.configuration.url(), {
-                  monitorCommands: true
-                }).then(client => {
+                const client = this.configuration.newClient({}, { monitorCommands: true });
+                return client.connect().then(client => {
                   expect(client).to.exist;
                   return executeOperation(client, scenario, test).then(() => client.close());
                 });
